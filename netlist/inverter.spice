@@ -1,0 +1,5 @@
+* CMOS inverter - schematic netlist for LVS
+.subckt inverter IN OUT VDD VSS
+M1 OUT IN VDD VDD sky130_fd_pr__pfet_01v8 W=1u L=0.15u
+M2 OUT IN VSS VSS sky130_fd_pr__nfet_01v8 W=0.5u L=0.15u
+.ends

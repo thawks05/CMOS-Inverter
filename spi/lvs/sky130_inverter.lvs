@@ -1,0 +1,68 @@
+# KLayout LVS for a SKY130 CMOS inverter (front-end + li1 + met1 only)
+# Usage:
+#   klayout -b -r sky130_inverter.lvs -rd input=inverter.gds -rd schematic=inverter.spice
+# Optional: -rd report=lvs.lvsdb  (open in KLayout: Tools -> Netlist Browser)
+
+source($input)
+report_lvs($report || File.basename($input, ".*") + ".lvsdb")
+schematic($schematic || "inverter.spice")
+deep
+
+# ---- SKY130 layers ----
+nwell   = polygons(64, 20)
+diff    = polygons(65, 20)
+tap     = polygons(65, 44)
+poly    = polygons(66, 20)
+licon   = polygons(66, 44)
+li      = polygons(67, 20)
+li_lbl  = labels(67, 5)
+mcon    = polygons(67, 44)
+met1    = polygons(68, 20)
+m1_lbl  = labels(68, 5)
+nsdm    = polygons(93, 44)
+psdm    = polygons(94, 20)
+bulk    = polygon_layer          # the p-substrate
+
+# ---- derived layers ----
+pdiff = diff & psdm & nwell
+ndiff = (diff & nsdm) - nwell
+pgate = poly & pdiff
+ngate = poly & ndiff
+psd   = pdiff - pgate
+nsd   = ndiff - ngate
+ntap  = tap & nsdm & nwell
+ptap  = (tap & psdm) - nwell
+
+# ---- devices ----
+extract_devices(mos4("sky130_fd_pr__pfet_01v8"),
+  { "SD" => psd, "G" => pgate, "tS" => psd, "tD" => psd, "tG" => poly, "W" => nwell })
+extract_devices(mos4("sky130_fd_pr__nfet_01v8"),
+  { "SD" => nsd, "G" => ngate, "tS" => nsd, "tD" => nsd, "tG" => poly, "W" => bulk })
+
+# ---- connectivity ----
+connect(psd,   licon)
+connect(nsd,   licon)
+connect(poly,  licon)
+connect(ntap,  licon)
+connect(ptap,  licon)
+connect(nwell, ntap)
+connect(licon, li)
+connect(li,    mcon)
+connect(mcon,  met1)
+connect(li,    li_lbl)
+connect(met1,  m1_lbl)
+connect_global(bulk, "VSS")
+connect_global(ptap, "VSS")
+
+# ---- compare ----
+same_circuits(source.cell_name, "inverter")
+netlist.make_top_level_pins
+netlist.purge
+netlist.simplify
+schematic.simplify
+
+if compare
+  puts "LVS CLEAN: layout matches schematic"
+else
+  puts "LVS MISMATCH: open the .lvsdb in KLayout (Tools -> Netlist Browser)"
+end
